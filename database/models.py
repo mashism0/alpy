@@ -23,12 +23,12 @@ class Instructor(Base):
     desired_exam_date = Column(Date, nullable=True)
 
     # Подвиды маршрутов в формате чекбокса
-    rock_routes = Column(Boolean, default=False)
-    snow_routes = Column(Boolean, default=False)
-    ice_routes = Column(Boolean, default=False)
-    mixed_routes = Column(Boolean, default=False)
-    high_altitude_routes = Column(Boolean, default=False)
-    ski_routes = Column(Boolean, default=False)
+    rock_routes = Column(String, default=False)
+    snow_routes = Column(String, default=False)
+    ice_routes = Column(String, default=False)
+    mixed_routes = Column(String, default=False)
+    high_altitude_routes = Column(String, default=False)
+    ski_routes = Column(String, default=False)
 
     # Строка с категорией сложности (IV, V и тп)
     difficulty_category = Column(String)

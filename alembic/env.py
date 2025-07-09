@@ -1,17 +1,9 @@
 import os
 from dotenv import load_dotenv # Для загрузки переменных окружения из .env файла
 from logging.config import fileConfig #Для конфигурации логгирования
-
 from sqlalchemy import engine_from_config, pool#Для создания движка SQLAlchemy и управления пулом соединений
 from alembic import context # Основной объект Alembic для конфигурации и запуска миграций
 
-import os
-from dotenv import load_dotenv  # Для загрузки переменных окружения из .env файла
-from sqlalchemy import engine_from_config, pool  # Для создания движка SQLAlchemy и управления пулом соединений
-from logging.config import fileConfig  # Для конфигурации логгирования
-
-# Загружаем переменные окружения из файла `.env`
-# Это позволяет держать параметры подключения (например, URL к БД) вне кода
 load_dotenv()
 
 # Получаем объект конфигурации Alembic из env.py

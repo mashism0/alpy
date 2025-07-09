@@ -5,9 +5,9 @@ import os #чтобы брать переменные окружения (нап
 from dotenv import load_dotenv
 load_dotenv()
 
-from handlers.qr_handler import qr_router #Обработка qr
-from handlers.start import start_router #Команда /start
-from handlers.callbacks import callback_router
+from bot.handlers.qr_handler import qr_router #Обработка qr
+from bot.handlers.start import start_router #Команда /start
+from bot.handlers.callbacks import callback_router
 
 
 TOKEN = os.getenv("BOT_TOKEN") #получаем токен из переменной окружения
