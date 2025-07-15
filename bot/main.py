@@ -8,7 +8,7 @@ load_dotenv()
 from bot.handlers.qr_handler import qr_router #Обработка qr
 from bot.handlers.start import start_router #Команда /start
 from bot.handlers.callbacks import callback_router
-
+from bot.handlers.email_handler import email_router
 
 TOKEN = os.getenv("BOT_TOKEN") #получаем токен из переменной окружения
 
@@ -19,6 +19,7 @@ async def main():
     dp.include_router(start_router) #подключаем обработчик /start
     dp.include_router(qr_router) #подключаем обработчик qr
     dp.include_router(callback_router) #подключаем роутер в колбеки
+    dp.include_router(email_router)
 
     await dp.start_polling(bot) #запуск долгоживущего цикла, бот опрашивает Tg на предмет новых событий
 
