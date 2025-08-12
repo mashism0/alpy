@@ -1,10 +1,11 @@
 import os
 from dotenv import load_dotenv
-import datetime
+from bot.handlers.start import main_menu, back
+from bot.handlers.func import send_temp_message, delete_temp_message
 import re
 from database.models import Instructor
 from aiogram import Router, F  # Маршрутизация и фильтры для бота Aiogram
-from aiogram.types import CallbackQuery, Message  # Типы Telegram-сообщений
+from aiogram.types import CallbackQuery, Message # Типы Telegram-сообщений 
 from aiogram.fsm.context import FSMContext  # Контекст состояний FSM
 from aiogram.fsm.state import State, StatesGroup  # Определение состояний FSM
 from aiogram.filters.state import StateFilter 
@@ -26,50 +27,82 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 
 @callback_router.callback_query(F.data == "check_fio")  # Обработчик нажатия на кнопку с data="check_qr"
 async def process_check_fio(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer("Отправьте ФИО инструктора для проверки в формате:\n"
-    "ФАМИЛИЯ ИМЯ ОТЧЕСТВО")  # Запросить фото у пользователя
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        print(f"Не удалось удалить сообщение: {e}")
+    await callback.bot.send_message(chat_id=callback.from_user.id, text="Отправьте ФИО инструктора для проверки в формате:\n"
+    "ФАМИЛИЯ ИМЯ ОТЧЕСТВО", reply_markup=back)  # Запросить фото у пользователя
     await state.set_state(QRStates.waiting_fio)  # Перевести FSM в состояние ожидания фото
     await callback.answer()  # Ответить на callback (чтобы убрать "часики" у кнопки)
 
-@callback_router.message(StateFilter(QRStates.waiting_fio), F.text)  # Обработчик сообщений с фото в состоянии ожидания QR
-async def handle_qr_photo(message: Message, state: FSMContext):
+@callback_router.message(StateFilter(QRStates.waiting_fio), F.text)
+async def handle_qr_fio(message: Message, state: FSMContext):
     fio = message.text.strip().split()
     try:
-        if len(fio) != 3:
-            await message.answer("❌ Пожалуйста, введите ФИО в формате: ФАМИЛИЯ ИМЯ ОТЧЕСТВО")
-            return
-
         for part in fio:
             if not re.fullmatch(r"[А-Яа-яЁё\-]+", part):
                 await message.answer("❌ ФИО может содержать только кириллицу и дефисы.")
                 return
-        last_name, first_name, middle_name = map(str.capitalize, fio)
-        # last_name = fio[0][:1].upper() + fio[0][1:].lower()
-        # print(last_name)
-        # first_name = fio[1][:1].upper() + fio[1][1:].lower()
-        # print(first_name)
-        # middle_name = fio[2][:1].upper() + fio[2][1:].lower()
-        AsyncSessionLocal = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession,) #Создает фабрику асинхронных сессий
+        if len(fio) == 2:
+            last_name, first_name = map(str.capitalize, fio)
 
-        async with AsyncSessionLocal() as session: #сессия из фабрики сессий в ассинхронном контексте 
-            user1 = await session.execute(select(Instructor).filter_by(last_name=last_name, first_name=first_name, middle_name=middle_name))#Выполняем асинхронный запрос к базе данных
-            
-        user = user1.scalar_one_or_none() #Получаем первую строку или None, если ничего не найдено
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    select(Instructor).filter_by(last_name=last_name, first_name=first_name)
+                )
+                users = result.scalars().all()
 
-        if user:
-            birth_date = user.birth_date.strftime('%d.%m.%Y') if user.birth_date else "Не указано"
-            await message.answer(f"✅ Инструктор найден: {user.last_name} {user.first_name} {user.middle_name}\n"
-                                f"Дата рождения: {birth_date}")
+            if users:
+                for user in users:
+                    birth_date = user.birth_date.strftime('%d.%m.%Y') if user.birth_date else "Не указано"
+                    await message.answer(
+                        f"✅ Инструктор найден: {user.last_name} {user.first_name} {user.middle_name or ''}\n"
+                        f"Дата рождения: {birth_date}"
+                    )
+                    await state.clear()
+                    await main_menu(message)
+            else:
+                await message.answer("❌ Инструктор не найден\n" \
+                "Проверьте правильность написания ФИО", reply_markup=back)
+                print("❌ Пользователь с таким ФИО не найден")
+                return
+
+        elif len(fio) == 3:
+            last_name, first_name, middle_name = map(str.capitalize, fio)
+
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    select(Instructor).filter_by(
+                        last_name=last_name,
+                        first_name=first_name,
+                        middle_name=middle_name
+                    )
+                )
+                users = result.scalars().all()
+            if users:
+                for user in users:
+                    birth_date = user.birth_date.strftime('%d.%m.%Y') if user.birth_date else "Не указано"
+                    await message.answer(
+                        f"✅ Инструктор найден: {user.last_name} {user.first_name} {user.middle_name}\n"
+                        f"Дата рождения: {birth_date}",
+                        )
+                    await main_menu(message)
+                    await state.clear()
+                    #await main_menu(message)
+            else:
+                await message.answer(
+                    "❌ Инструктор не найден\n"
+                    "Проверьте правильность написания ФИО",
+                    reply_markup=back)
+                print("❌ Пользователь с таким ФИО не найден")
+                return
         else:
-            await message.answer(f"❌ Инструктор не найден\n"
-                                f"Проверьте правильность написания ФИО")
-            print("❌ Пользователь с таким ФИО не найден")
+            await message.answer("❌ Пожалуйста, введите ФИО в формате: Фамилия Имя Отчество", reply_markup=back)
             return
-    except Exception as e:
-        print(f"Ошибка при парсинге: {e}"
-                f"Проблема в qr_handler.handle_qr_photo")  # Логируем ошибки при парсинге
-        await message.answer("Пожалуйста, введите ФИО кириллицей.")
-        return
 
-    await state.clear()  # Сбрасываем состояние FSM
+    except Exception as e:
+        print(f"Ошибка при парсинге: {e}")
+        await message.answer("❌ Произошла ошибка. Пожалуйста, повторите попытку.", reply_markup=back)
+        return
 

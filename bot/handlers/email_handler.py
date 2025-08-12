@@ -4,6 +4,8 @@ import smtplib
 from email.mime.text import MIMEText
 import os
 from dotenv import load_dotenv
+from bot.handlers.start import main_menu, back
+from bot.handlers.func import send_temp_message, delete_temp_message
 from aiogram import Router, F  # Маршрутизация и фильтры для бота Aiogram
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext  # Контекст состояний FSM
@@ -42,7 +44,7 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 @email_router.callback_query(F.data == 'exam')
 async def process_check_email(callback:CallbackQuery, state: FSMContext):
     await callback.message.answer('Введите ваш email для аутентификации.\n'
-                                  'Тот, который вы указывали в анкете.')
+                                  'Тот, который вы указывали в анкете.', reply_markup=back)
     await state.set_state(EmailStates.waiting_email)
     await callback.answer()
 
@@ -51,7 +53,7 @@ async def check_email(message: Message, state: FSMContext):
     try:
         user_data = {"email": message.text.strip()}
         user = User(**user_data)
-        print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Email валиден: {user.email}")
+        print(f"Email валиден: {user.email}")
         
         AsyncSessionLocal = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession,) #Создает фабрику асинхронных сессий
 
@@ -61,7 +63,7 @@ async def check_email(message: Message, state: FSMContext):
         user = user1.scalar_one_or_none() #Получаем первую строку или None, если ничего не найдено
 
         if user:
-            await message.answer(f"Email принят: {user.email}")
+            await send_temp_message(message.bot, message, f"Email принят: {user.email}")
             code = ''.join(random.choices(string.digits, k=6))# Генерируем код из 6 символов
             email_and_code[user.email] = code  # Сохраняем код в словарь
 
@@ -79,8 +81,11 @@ async def check_email(message: Message, state: FSMContext):
                     server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
                     server.send_message(msg)
 
+                await delete_temp_message(message.bot, message)
                 # Переход к следующему состоянию FSM
-                await message.answer(f"✅ Код отправлен на {user.email}. Введите его в чат.")
+                await send_temp_message(message.bot, message, 
+                                    f"✅ Код отправлен на {user.email}.\n"
+                                     "Введите его в чат.")
                 await state.set_state(EmailStates.waiting_code)
 
                 # Сохраняем email в FSM для дальнейшей проверки
@@ -112,8 +117,10 @@ async def process_code(message: Message, state: FSMContext):
 
     # Проверяем код
     if email_and_code.get(email) == code_input:
+        await delete_temp_message(message.bot, message)
         await message.answer("🎉 Аутентификация успешна!")
         email_and_code.pop(email, None)  # Удаляем использованный код
         await state.clear()
+        await main_menu(message)
     else:
         await message.answer("❌ Неверный код. Попробуйте снова.")

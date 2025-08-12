@@ -1,0 +1,30 @@
+# Виртуальное окружение
+venv/
+.venv/
+
+# Файлы настроек и секретов
+.env
+.env.*
+config.json
+*.pem
+
+# Кэш Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Логи
+*.log
+
+# Кэш и временные файлы
+.cache/
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+*.pid
+
